@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
 
 from recipes.models import Ingredient, Recipe, RecipeIngredient, Subscribe, Tag
 
@@ -60,8 +61,6 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
     Сериализатор для получения списка ингредиентов в рецепте с указанием
     количества.
     """
-    id = serializers.ReadOnlyField(
-        source='ingredient.id')
     name = serializers.ReadOnlyField(
         source='ingredient.name')
     measurement_unit = serializers.ReadOnlyField(
@@ -77,7 +76,6 @@ class IngredientAmountRecipeSerializer(serializers.ModelSerializer):
     """
     Сериализатор ингредиентов с количеством.
     """
-    id = serializers.IntegerField()
 
     class Meta:
         """
@@ -253,6 +251,12 @@ class SubscribeSerializer(serializers.ModelSerializer):
         fields = (
             'email', 'id', 'username', 'first_name', 'last_name',
             'is_subscribed', 'recipes', 'recipes_count',)
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Subscribe.objects.all(),
+                fields=['author']
+            )
+        ]
 
     def to_representation(self, instance):
         authors = SubscriptionSerializer(

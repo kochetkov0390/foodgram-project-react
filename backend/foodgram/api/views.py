@@ -18,8 +18,8 @@ from rest_framework.response import Response
 from api.filters import IngredientFilter, RecipeFilter
 from api.mixins import GetObjectMixin, PermissionAndPaginationMixin
 from api.pagination import LimitFieldPagination
-from api.permissions import IsAuthorOrAdminOrReadOnly
-from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag
+from api.permissions import IsAuthorOrReadOnly
+from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag, Subscribe
 from api.serializers import (CustomUserSerializer, IngredientSerializer,
                              RecipeSerializer, RecipeWriteSerializer,
                              SubscribeSerializer, SubscriptionSerializer,
@@ -49,9 +49,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
     Вьюсет для работы с запросами о рецептах - просмотр списка рецептов,
     просмотр отдельного рецепта, создание, изменение и удаление рецепта.
     """
-    queryset = Recipe.objects.all()
+    queryset = Recipe.objects.select_related('author')
     serializer_class = RecipeSerializer
-    permission_classes = (IsAuthorOrAdminOrReadOnly,)
+    permission_classes = (IsAuthorOrReadOnly,)
     filterset_class = RecipeFilter
 
     def perform_create(self, serializer):
@@ -74,7 +74,7 @@ class IngredientViewSet(PermissionAndPaginationMixin,
     filterset_class = IngredientFilter
 
 
-class AddAndDeleteSubscribe(
+class FollowUnfollowUser(
         generics.RetrieveDestroyAPIView,
         generics.ListCreateAPIView):
     """Подписка и отписка от пользователя."""
@@ -89,27 +89,14 @@ class AddAndDeleteSubscribe(
             'following__recipes'
         ).annotate(
             recipes_count=Count('following__recipes'),
-            is_subscribed=Value(True), )
-
-    def get_object(self):
-        user_id = self.kwargs['user_id']
-        user = get_object_or_404(User, id=user_id)
-        self.check_object_permissions(self.request, user)
-        return user
+            is_subscribed=Value(True))
 
     def create(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if request.user.id == instance.id:
-            return Response(
-                {'errors': 'На самого себя не подписаться!'},
-                status=status.HTTP_400_BAD_REQUEST)
-        if request.user.follower.filter(author=instance).exists():
-            return Response(
-                {'errors': 'Уже подписан!'},
-                status=status.HTTP_400_BAD_REQUEST)
-        subs = request.user.follower.create(author=instance)
-        serializer = self.get_serializer(subs)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        user_id = self.kwargs.get('users_id')
+        user = get_object_or_404(User, id=user_id)
+        Subscribe.objects.create(
+            user=request.user, following=user)
+        return Response(status.CREATED)
 
     def perform_destroy(self, instance):
         self.request.user.follower.filter(author=instance).delete()

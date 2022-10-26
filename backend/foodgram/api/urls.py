@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from api.views import (AddAndDeleteSubscribe, AddDeleteFavoriteRecipe,
+from api.views import (FollowUnfollowUser, AddDeleteFavoriteRecipe,
                        AddDeleteShoppingCart, CustomUserViewSet,
                        DownloadShoppingCart, IngredientViewSet, RecipeViewSet,
                        SubscriptionsView, TagViewSet, set_password)
@@ -22,7 +22,7 @@ urlpatterns = [
           name='set_password'),
      path(
           'users/<int:user_id>/subscribe/',
-          AddAndDeleteSubscribe.as_view(),
+          FollowUnfollowUser.as_view(),
           name='subscribe'),
      path(
         'users/subscriptions/',
